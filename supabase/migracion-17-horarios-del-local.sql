@@ -1,0 +1,57 @@
+-- ============================================================================
+-- MIGRACIÓN 17 — los horarios los pone el local, no el script de ejemplo
+--
+-- Correr en Supabase → SQL Editor. Va después de la 16.
+--
+-- QUÉ PASABA
+--
+-- Todos los locales de la base tenían siete filas en `comercio_horarios` con
+-- "abre 09:00, cierra 23:00" (El Fogón, 19:00). Nadie las cargó desde la app:
+-- **las sembró `seed.sql`**, junto con los locales de demostración. Cuando
+-- Burger Bros pasó a ser un local de verdad, se quedó con esos horarios
+-- puestos por nadie.
+--
+-- El efecto era el peor posible para el comercio: `estadoApertura` cruza el
+-- interruptor de abierto/cerrado CON el horario, así que fuera de las 9 a 23 el
+-- cliente veía el local cerrado por más que el dueño prendiera el interruptor.
+-- Desde el panel el botón parecía roto, y no había ninguna pantalla donde ver
+-- —ni mucho menos cambiar— el horario que lo estaba tapando.
+--
+-- QUÉ SE HACE
+--
+--   1. Se borran TODAS las filas de `comercio_horarios`. Todas son de la
+--      semilla: hasta hoy no existía la pantalla para cargar una.
+--   2. La app pasa a tener esa pantalla (Mi local → Horarios de atención).
+--
+-- Sin horarios cargados, `estadoApertura` devuelve lo que diga el interruptor,
+-- que es exactamente lo que un local nuevo espera: abro y cierro a mano hasta
+-- que me siente a cargar mi horario.
+--
+-- ESTO SÍ BORRA DATOS
+--
+-- A diferencia de las migraciones 15 y 16, esta toca filas. Son datos de
+-- ejemplo y su pérdida no afecta ningún pedido —`comercio_horarios` no está
+-- referenciada por nada—, pero conviene saberlo antes de correrla. Si algún
+-- local ya hubiera cargado su horario de verdad, lo tendría que volver a
+-- cargar; hoy no hay ninguno en esa situación.
+-- ============================================================================
+
+-- Para ver qué se va a borrar antes de borrarlo:
+--
+--   select c.nombre, h.dia_semana, h.abre, h.cierra
+--     from public.comercio_horarios h
+--     join public.comercios c on c.id = h.comercio_id
+--    order by c.nombre, h.dia_semana;
+
+delete from public.comercio_horarios;
+
+-- ============================================================================
+-- COMPROBARLO
+--
+--   select count(*) from public.comercio_horarios;   -- tiene que dar 0
+--
+-- Y en la app: entrar como comercio, prender el interruptor, y ver que el
+-- cliente lo ve abierto a cualquier hora. Después cargar un horario en
+-- Mi local y ver que fuera de ese rango vuelve a aparecer cerrado, ahora sí
+-- porque alguien lo decidió.
+-- ============================================================================
